@@ -73,3 +73,8 @@ const sf::Texture& DynamicBlur::operator()(const sf::Texture& inputTexture)
 
     return __blurTexture.getTexture();
 }
+
+void DynamicBlur::blurRenderTexture(sf::RenderTexture& renderTexture)
+{
+    renderTexture.draw(sf::Sprite(this->operator()(renderTexture.getTexture())));
+}
