@@ -28,12 +28,15 @@ struct HitPoint3D
 
 	bool m_hit;
 	Point3D m_point;
+	Point3D m_text_coord;
 };
 
 class Grid3D
 {
 public:
 	Grid3D(int x_size, int y_size, int z_size, int cell_size);
+
+	std::vector<std::vector<int>>& operator[](int x);
 
 	HitPoint3D castRay(const Point3D& start, const Point3D& ray_vector) const;
 

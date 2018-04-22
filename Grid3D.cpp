@@ -15,6 +15,11 @@ Grid3D::Grid3D(int x_size, int y_size, int z_size, int cell_size) :
 	}
 }
 
+std::vector<std::vector<int>>& Grid3D::operator[](int x)
+{
+	return m_cells[x];
+}
+
 HitPoint3D Grid3D::castRay(const Point3D& start, const Point3D& ray_vector) const
 {
 	// Initialization
@@ -90,7 +95,10 @@ HitPoint3D Grid3D::castRay(const Point3D& start, const Point3D& ray_vector) cons
 				float hit_y = start.y + t_max_min * ray_vector.y;
 				float hit_z = start.z + t_max_min * ray_vector.z;
 
-				return HitPoint3D(hit_x, hit_y, hit_z, true);
+				HitPoint3D point(hit_x, hit_y, hit_z, true);
+				//point.m_text_coord();
+
+				return point;
 			}
 		}
 	}
