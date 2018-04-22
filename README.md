@@ -1,2 +1,2 @@
-# DynamicBlur
-Configurable real time blur on a sf::RenderTexture
+# VoxelCaster
+Simple voxel ray caster
