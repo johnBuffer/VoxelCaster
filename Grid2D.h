@@ -1,7 +1,7 @@
 #ifndef GRID2D_H_INCLUDED
 #define GRID2D_H_INCLUDED
 
-#include <SFML/Graphics.hpp>
+#include <vector>
 
 struct Point2D
 {
@@ -39,8 +39,6 @@ class Grid2D
 {
 public:
     Grid2D(int width, int height, int cell_size=10);
-
-    void draw(sf::RenderTarget* target) const;
 
     int getCellSize() const;
 
