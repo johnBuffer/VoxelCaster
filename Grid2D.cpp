@@ -12,40 +12,6 @@ Grid2D::Grid2D(int width, int height, int cell_size) :
     }
 }
 
-void Grid2D::draw(sf::RenderTarget* target) const
-{
-    sf::VertexArray grix_va(sf::Lines, 2*(cells.size()+cells[0].size()));
-
-    for (int x(0); x<grid_width; ++x)
-    {
-        grix_va[2*x+0].position = sf::Vector2f(x*cell_side_size, 0);
-        grix_va[2*x+1].position = sf::Vector2f(x*cell_side_size, grid_height*cell_side_size);
-    }
-
-    for (int y(0); y<grid_height; ++y)
-    {
-        grix_va[2*grid_width+2*y+0].position = sf::Vector2f(0, y*cell_side_size);
-        grix_va[2*grid_width+2*y+1].position = sf::Vector2f(grid_width*cell_side_size, y*cell_side_size);
-    }
-
-    for (int x(0); x<grid_width; ++x)
-    {
-        for (int y(0); y<grid_height; ++y)
-        {
-            if (cells[x][y])
-            {
-                sf::RectangleShape rect(sf::Vector2f(cell_side_size, cell_side_size));
-                rect.setFillColor(sf::Color::Blue);
-                rect.setPosition(x*cell_side_size, y*cell_side_size);
-
-                target->draw(rect);
-            }
-        }
-    }
-
-    target->draw(grix_va);
-}
-
 int Grid2D::getCellSize() const
 {
 	return cell_side_size;

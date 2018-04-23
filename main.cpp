@@ -1,13 +1,13 @@
 #include <iostream>
-#include <SFML/Graphics.hpp>
 #include <vector>
-#include "Grid2D.h"
-#include "Grid3D.h"
-#include "utils.h"
 #include <glm/gtx/rotate_vector.hpp>
 #include <GL/glew.h>
+#include <GLFW/glfw3.h>
 
-int work_grp_size[3];
+#include "Grid2D.h"
+#include "Grid3D.h"
+#include "ShaderProgram.h"
+#include "utils.h"
 
 int main()
 {
@@ -17,199 +17,118 @@ int main()
 	int RENDER_WIDTH = 500;
 	int RENDER_HEIGHT = 500;
 
-    sf::RenderWindow window(sf::VideoMode(WIN_WIDTH, WIN_HEIGHT), "BLUR", sf::Style::Default);
-    window.setVerticalSyncEnabled(false);
-    window.setMouseCursorVisible(false);
-    window.setKeyRepeatEnabled(true);
-
-	int work_grp_cnt[3];
-
-    Grid3D grid(40, 40, 40, 25);
-
-    for (int i(4000); i--;)
-    {
-        grid[rand()%40][rand()%40][rand()%40] = 1;
-    }
-
-	Point3D start(10, 10, 10);
-
-	sf::VertexArray cast_va(sf::Points, RENDER_WIDTH*RENDER_HEIGHT);
-
-	for (int x(0); x < RENDER_WIDTH; ++x)
+	// Initialize GLFW
+	if (!glfwInit())
 	{
-		for (int y(0); y < RENDER_HEIGHT; ++y)
-		{
-			cast_va[x*RENDER_HEIGHT + y].position = sf::Vector2f(x, y);
-		}
+		fprintf(stderr, "Failed to initialize GLFW\n");
+		return -1;
 	}
 
-	float movement_speed = 5.0f;
+	glfwWindowHint(GLFW_SAMPLES, 4); // 4x antialiasing
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4); // OpenGL 4.3
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE); // Discard old OpenGL
 
-	float camera_horizontal_angle = 0;
-	float camera_vertical_angle = 0;
+	// Ouvre une fenêtre et crée son contexte OpenGl
+	GLFWwindow* window;
+	window = glfwCreateWindow(512, 512, "vxc", NULL, NULL);
+	if (window == NULL) {
+		fprintf(stderr, "Failed to open GLFW window. If you have an Intel GPU, they are not 3.3 compatible. Try the 2.1 version of the tutorials.\n");
+		glfwTerminate();
+		return -1;
+	}
+	glfwMakeContextCurrent(window);
 
-	Point3D camera_origin(RENDER_WIDTH / 2, RENDER_HEIGHT / 2, -RENDER_WIDTH / 1);
-	Point3D camera_vec(RENDER_WIDTH / 2 - camera_origin.x, RENDER_HEIGHT / 2 - camera_origin.y, -camera_origin.z);
-	float ray_length = length(camera_vec);
-	camera_vec.x /= ray_length;
-	camera_vec.y /= ray_length;
-	camera_vec.z /= ray_length;
+	// Initialize GLEW
+	glewExperimental = true; // Nécessaire dans le profil de base
+	if (glewInit() != GLEW_OK) {
+		fprintf(stderr, "Failed to initialize GLEW\n");
+		return -1;
+	}
 
-	double time = 0.0;
+	/*
+		Compute things
+	*/
 
-	sf::RenderTexture render_texture;
-	render_texture.create(RENDER_WIDTH, RENDER_HEIGHT);
+	GLuint texture = genTexture(512, 512);
+	GLuint compute_shader = createComputeShader("test.cp", true);
 
-	sf::Vector2i last_mouse_position;
+	glUseProgram(compute_shader);
+	//GLint dest_text_location = glGetUniformLocation(compute_shader, "img_output");
+	//glUniform1i(dest_text_location, tex_output);
 
-    while (window.isOpen())
-    {
-		time += 0.002;
-        sf::Vector2i mousePosition = sf::Mouse::getPosition(window);
+	// DATA
+	const int grid_size_x = 100;
+	const int grid_size_y = 100;
+	const int grid_size_z = 1;
 
-		camera_horizontal_angle += (mousePosition.x - WIN_WIDTH / 2)*0.001f;
-		camera_vertical_angle += (mousePosition.y - WIN_HEIGHT / 2)*0.001f;
-		sf::Mouse::setPosition(sf::Vector2i(WIN_WIDTH / 2, WIN_HEIGHT / 2), window);
+	const int grid_size[] = { grid_size_x, grid_size_y, grid_size_z };
+	int grid[ grid_size_x * grid_size_y * grid_size_z ];
 
-		if (mousePosition != last_mouse_position)
-		{
-			render_texture.clear(sf::Color::Black);
-		}
+	for (int i(0); i<20; ++i)
+		grid[100 * 50 + i] = 1;
 
-		last_mouse_position = mousePosition;
+	std::cout << sizeof(grid) << std::endl;
 
-		Point3D movement_vec = getCameraRay(camera_vec, camera_horizontal_angle, camera_vertical_angle);
+	GLuint grid_size_buffer;
+	glGenBuffers(1, &grid_size_buffer);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, grid_size_buffer);
+	glBufferData(GL_SHADER_STORAGE_BUFFER, 3 * sizeof(int), grid_size, GL_STATIC_DRAW);
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, grid_size_buffer);
+	
+	GLuint grid_buffer;
+	glGenBuffers(1, &grid_buffer);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, grid_buffer);
+	glBufferData(GL_SHADER_STORAGE_BUFFER, grid_size_x*grid_size_y*grid_size_z * sizeof(int), grid, GL_STATIC_DRAW);
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, grid_buffer);
+	
+	ShaderProgram shader(ShaderProgram::base_vertex, ShaderProgram::base_fragment, true);
+	//shader.setUniform("srcTex", tex_output);
 
-		//Point3D light_position(0, 0, 0);
-		Point3D light_position(500+500*cos(time), 0, 500+500 * sin(time));
+	/*
+		Create Quad object
+	*/
+	GLuint VertexArrayID;
+	glGenVertexArrays(1, &VertexArrayID);
+	glBindVertexArray(VertexArrayID);
 
-        sf::Event event;
-        while (window.pollEvent(event))
-        {
-            if (event.type == sf::Event::Closed)
-                window.close();
+	GLuint buffer;
+	glGenBuffers(1, &buffer);
+	glBindBuffer(GL_ARRAY_BUFFER, buffer);
+	float data[] = {
+		-1.0f, -1.0f,
+		-1.0f,  1.0f,
+		 1.0f, -1.0f,
+		 1.0f,  1.0f
+	};
+	glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 8, data, GL_STATIC_DRAW);
 
-            if (event.type == sf::Event::KeyPressed)
-            {
-                switch (event.key.code)
-                {
-                case sf::Keyboard::Escape:
-                    window.close();
-                    break;
-                case sf::Keyboard::Z:
-					start.x += movement_vec.x*movement_speed;;
-					start.y += movement_vec.y*movement_speed;;
-					start.z += movement_vec.z*movement_speed;
-                    break;
-                case sf::Keyboard::S:
-					start.x -= movement_vec.x*movement_speed;;
-					start.y -= movement_vec.y*movement_speed;;
-					start.z -= movement_vec.z*movement_speed;
-                    break;
-				case sf::Keyboard::Q:
-					start.x -= movement_speed;
-					break;
-				case sf::Keyboard::D:
-					start.x += movement_speed;
-					break;
-				case sf::Keyboard::A:
-					start.z += movement_speed;
-					break;
-				case sf::Keyboard::E:
-					start.z -= movement_speed;
-					break;
-                default:
-                    break;
-                }
-            }
-        }
+	shader.bind();
+	GLint posPtr = shader.getAttribLocation("pos");
+	glVertexAttribPointer(posPtr, 2, GL_FLOAT, GL_FALSE, 0, 0);
+	glEnableVertexAttribArray(posPtr);
 
-		for (int x(0); x < RENDER_WIDTH; ++x)
-		{
-			for (int y(0); y < RENDER_HEIGHT; ++y)
-			{
-				Point3D ray(x - camera_origin.x, y - camera_origin.y, -camera_origin.z);
-				float ray_length = sqrt(ray.x*ray.x + ray.y*ray.y + ray.z*ray.z);
-				ray.x /= ray_length;
-				ray.y /= ray_length;
-				ray.z /= ray_length;
+	// Assure que l'on peut capturer la touche d'échappement enfoncée ci-dessous
+	glfwSetInputMode(window, GLFW_STICKY_KEYS, GL_TRUE);
+	while (glfwGetKey(window, GLFW_KEY_ESCAPE) != GLFW_PRESS && glfwWindowShouldClose(window) == 0)
+	{
+		glUseProgram(compute_shader);
+		glDispatchCompute((GLuint)512, (GLuint)512, 1);
 
-				HitPoint3D point = grid.castRay(start, getCameraRay(ray, camera_horizontal_angle, camera_vertical_angle));
-
-				if (point.m_hit)
-				{
-					Point3D hit_light_vec = directionnalVector(point.m_point, light_position);
-					Point3D start_light(point.m_point.x - hit_light_vec.x*0.01f, point.m_point.y - hit_light_vec.y*0.01f, point.m_point.z - hit_light_vec.z*0.01f);
-
-					HitPoint3D light_hit_point = grid.castRay(start_light, hit_light_vec);
-					
-					float light_intensity = 100000 / length(point.m_point - light_position);
-					if (light_hit_point.m_hit)
-						light_intensity *= 0.25f;
-
-					float color = light_intensity;
-					if (color > 255) color = 255;
-					cast_va[x*RENDER_HEIGHT + y].color = sf::Color(color, color, color);
-				}
-				else
-				{
-					cast_va[x*RENDER_HEIGHT + y].color = sf::Color::Black;
-				}
-			}
-		}
+		// make sure writing to image has finished before read
+		glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 		
-		/*int ray_count = 50000;
-		sf::VertexArray aprox_va(sf::Points, ray_count);
-		for (int i(ray_count); i--;)
-		{
-			float x = rand() % RENDER_WIDTH;
-			float y = rand() % RENDER_HEIGHT;
+		// normal drawing pass
+		glClear(GL_COLOR_BUFFER_BIT);
+		shader.bind();
+		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
-			aprox_va[i].position = sf::Vector2f(x, y);
+		// Swap buffers
+		glfwSwapBuffers(window);
+		glfwPollEvents();
 
-			Point3D ray(x - camera_origin.x, y - camera_origin.y, -camera_origin.z);
-			float ray_length = sqrt(ray.x*ray.x + ray.y*ray.y + ray.z*ray.z);
-			ray.x /= ray_length;
-			ray.y /= ray_length;
-			ray.z /= ray_length;
-
-			HitPoint3D point = grid.castRay(start, getCameraRay(ray, camera_horizontal_angle, camera_vertical_angle));
-
-			if (point.m_hit)
-			{
-				Point3D hit_light_vec = directionnalVector(point.m_point, light_position);
-				Point3D start_light(point.m_point.x - hit_light_vec.x*0.01f, point.m_point.y - hit_light_vec.y*0.01f, point.m_point.z - hit_light_vec.z*0.01f);
-
-				HitPoint3D light_hit_point = grid.castRay(start_light, hit_light_vec);
-
-				float light_intensity = 100000 / length(point.m_point - light_position);
-				if (light_hit_point.m_hit)
-					light_intensity *= 0.25f;
-
-				float color = light_intensity;
-				if (color > 255) color = 255;
-				aprox_va[i].color = sf::Color(color, color, color);
-			}
-			else
-			{
-				aprox_va[i].color = sf::Color::Black;
-			}
-		}
-
-		render_texture.draw(aprox_va);*/
-		
-		render_texture.draw(cast_va);
-		render_texture.display();
-
-		sf::Sprite render_sprite(render_texture.getTexture());
-		render_sprite.setScale(2.0f, 2.0f);
-		
-		window.clear(sf::Color::Black);
-
-		window.draw(render_sprite);
-
-        window.display();
-    }
+		checkErrors("lol");
+	}
 
     return 0;
 }
