@@ -141,6 +141,17 @@ GLuint genTexture(int width, int height)
 	return texHandle;
 }
 
+glm::vec3 getCameraRay(const glm::vec3& camera_vector, float horizontal_angle, float vertical_angle)
+{
+	float sin_a = sin(-horizontal_angle);
+	float cos_a = cos(-horizontal_angle);
+	float sin_a_y = sin(-vertical_angle);
+	float cos_a_y = cos(-vertical_angle);
+
+	glm::vec3 ray_camera(camera_vector.x, camera_vector.y*cos_a_y - camera_vector.z*sin_a_y, camera_vector.y*sin_a_y + camera_vector.z*cos_a_y);
+	return glm::vec3(ray_camera.x*cos_a - ray_camera.z*sin_a, ray_camera.y, ray_camera.x*sin_a + ray_camera.z*cos_a);
+}
+
 void checkErrors(std::string desc) 
 {
 	GLenum e = glGetError();

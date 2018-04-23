@@ -4,23 +4,22 @@ Grid3D::Grid3D(int x_size, int y_size, int z_size, int cell_size) :
 	m_cell_size(cell_size),
 	m_grid_size(x_size, y_size, z_size)
 {
-	m_cells.resize(x_size);
-	for (auto& vec : m_cells)
-	{
-		vec.resize(y_size);
-		for (auto& sub_vec : vec)
-		{
-			sub_vec.resize(z_size);
-		}
-	}
+	m_cells.resize(x_size*y_size*z_size);
 }
 
-std::vector<std::vector<int>>& Grid3D::operator[](int x)
+int& Grid3D::operator()(int x, int y, int z)
 {
-	return m_cells[x];
+	return m_cells[x * m_grid_size.y * m_grid_size.z + y * m_grid_size.z + z];
 }
 
-HitPoint3D Grid3D::castRay(const Point3D& start, const Point3D& ray_vector) const
+int Grid3D::at(int x, int y, int z) const
+{
+	return m_cells[x * m_grid_size.y * m_grid_size.z + y * m_grid_size.z + z];
+}
+
+
+
+HitPoint3D Grid3D::castRay(const glm::vec3& start, const glm::vec3& ray_vector) const
 {
 	// Initialization
 	// We assume we have a ray vector:
@@ -89,14 +88,13 @@ HitPoint3D Grid3D::castRay(const Point3D& start, const Point3D& ray_vector) cons
 
 		if (cell_x >= 0 && cell_y >= 0 && cell_z >= 0 && cell_x < m_grid_size.x && cell_y < m_grid_size.y && cell_z < m_grid_size.z)
 		{
-			if (m_cells[cell_x][cell_y][cell_z])
+			if (at(cell_x, cell_y, cell_z))
 			{
 				float hit_x = start.x + t_max_min * ray_vector.x;
 				float hit_y = start.y + t_max_min * ray_vector.y;
 				float hit_z = start.z + t_max_min * ray_vector.z;
 
 				HitPoint3D point(hit_x, hit_y, hit_z, true);
-				//point.m_text_coord();
 
 				return point;
 			}
@@ -104,4 +102,9 @@ HitPoint3D Grid3D::castRay(const Point3D& start, const Point3D& ray_vector) cons
 	}
 
 	return HitPoint3D();
+}
+
+const int* Grid3D::data() const
+{
+	return &m_cells[0];
 }

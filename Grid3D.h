@@ -1,22 +1,7 @@
 #pragma once
 
 #include <vector>
-
-struct Point3D
-{
-	Point3D() :
-		x(0), y(0), z(0) {}
-
-	Point3D(float x_, float y_, float z_) :
-		x(x_),
-		y(y_),
-		z(z_)
-	{
-
-	}
-
-	float x, y, z;
-};
+#include <glm/glm.hpp>
 
 struct HitPoint3D
 {
@@ -27,8 +12,8 @@ struct HitPoint3D
 		m_point(x, y, z), m_hit(hit) {}
 
 	bool m_hit;
-	Point3D m_point;
-	Point3D m_text_coord;
+	glm::vec3 m_point;
+	glm::vec3 m_text_coord;
 };
 
 class Grid3D
@@ -36,12 +21,15 @@ class Grid3D
 public:
 	Grid3D(int x_size, int y_size, int z_size, int cell_size);
 
-	std::vector<std::vector<int>>& operator[](int x);
+	int& operator()(int x, int y, int z);
+	int at(int x, int y, int z) const;
 
-	HitPoint3D castRay(const Point3D& start, const Point3D& ray_vector) const;
+	HitPoint3D castRay(const glm::vec3& start, const glm::vec3& ray_vector) const;
+	
+	const int* data() const;
 
 private:
 	int m_cell_size;
-	Point3D m_grid_size;
-	std::vector<std::vector<std::vector<int>>> m_cells;
+	glm::vec3 m_grid_size;
+	std::vector<int> m_cells;
 };
