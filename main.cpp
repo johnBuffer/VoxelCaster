@@ -12,8 +12,8 @@
 
 int main()
 {
-    int WIN_WIDTH = 512;
-    int WIN_HEIGHT = 512;
+    int WIN_WIDTH = 1024;
+    int WIN_HEIGHT = 1024;
 
 	int RENDER_WIDTH = 512;
 	int RENDER_HEIGHT = 512;
@@ -25,7 +25,7 @@ int main()
 		return -1;
 	}
 
-	glfwWindowHint(GLFW_SAMPLES, 4); // 4x antialiasing
+	glfwWindowHint(GLFW_SAMPLES, 1); // 4x antialiasing
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4); // OpenGL 4.3
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE); // Discard old OpenGL
@@ -63,9 +63,9 @@ int main()
 	glm::vec3 start_position(300, 300, 300);
 
 	// DATA
-	const int grid_size_x = 1000;
-	const int grid_size_y = 100;
-	const int grid_size_z = 1000;
+	const int grid_size_x = 500;
+	const int grid_size_y = 50;
+	const int grid_size_z = 500;
 
 	Grid3D grid(grid_size_x, grid_size_y, grid_size_z, 10);
 
@@ -139,14 +139,20 @@ int main()
 	glVertexAttribPointer(posPtr, 2, GL_FLOAT, GL_FALSE, 0, 0);
 	glEnableVertexAttribArray(posPtr);
 
+	double time = 0.0;
+
 	glm::vec3 camera_origin(WIN_WIDTH / 2, WIN_HEIGHT / 2, -WIN_WIDTH / 1);
 	glm::vec3 camera_vec(0, 0, -1);
 	//camera_vec = glm::normalize(camera_vec);
+	glm::vec3 light_position;
 
-	// Assure que l'on peut capturer la touche d'échappement enfoncée ci-dessous
 	glfwSetInputMode(window, GLFW_STICKY_KEYS, GL_TRUE);
 	while (glfwGetKey(window, GLFW_KEY_ESCAPE) != GLFW_PRESS && glfwWindowShouldClose(window) == 0)
 	{
+		time += 0.005;
+
+		light_position = glm::vec3(500 * cos(time) + 500, 500+200*sin(time), 500 * sin(time) + 500);
+
 		glUseProgram(compute_shader);
 
 		glm::vec3 movement_vec = getCameraRay(camera_vec, camera_horizontal_angle, camera_vertical_angle);
@@ -202,6 +208,7 @@ int main()
 		start_position += movement;
 
 		glUniform3f(2, start_position.x, start_position.y, start_position.z);
+		glUniform3f(5, light_position.x, light_position.y, light_position.z);
 
 		// Mouse management
 		double mouse_x_pos, mouse_y_pos;
