@@ -1,7 +1,5 @@
 #version 430
 
-precision highp float;
-
 layout(local_size_x = 1, local_size_y = 1) in;
 
 layout(std430, binding=3) readonly buffer size
@@ -47,86 +45,87 @@ void castRay(in vec3 start, in vec3 ray, in int max_iter, out HitPoint result)
 	float cell_size = 10.0;
 
 	// cell_x and cell_y are the starting voxel's coordinates
-	int cell_x = int(start.x / cell_size);
-	int cell_y = int(start.y / cell_size);
-	int cell_z = int(start.z / cell_size);
+	ivec3 cell_coord = ivec3(start / cell_size);
 
 	// step_x and step_y describe if cell_x and cell_y
 	// are incremented or decremented during iterations
 	int step_x = ray.x<0 ? -1 : 1;
 	int step_y = ray.y<0 ? -1 : 1;
 	int step_z = ray.z<0 ? -1 : 1;
+    
+    ivec3 step = ivec3(step_x, step_y, step_z);
 
 	// Compute the value of t for first intersection in x and y
-	int dir_x = step_x > 0 ? 1 : 0;
-	float t_max_x = ((cell_x + dir_x)*cell_size - start.x)/ray.x;
-
-	int dir_y = step_y > 0 ? 1 : 0;
-	float t_max_y = ((cell_y + dir_y)*cell_size - start.y) / ray.y;
-
-	int dir_z = step_z > 0 ? 1 : 0;
-	float t_max_z = ((cell_z + dir_z)*cell_size - start.z) / ray.z;
+	ivec3 dir = max(step, 0);
+    vec3 t_max = ((cell_coord+dir)*cell_size - start) / ray;
 	
 	// Compute how much (in units of t) we can move along the ray
 	// before reaching the cell's width and height
-	float t_dx = abs(float(cell_size) / ray.x);
-	float t_dy = abs(float(cell_size) / ray.y);
-	float t_dz = abs(float(cell_size) / ray.z);
+    vec3 t_delta = abs(vec3(cell_size) / ray);
 	
 	result.hit = false;
 	
 	int i=0;
-	vec3 normal = vec3(1.0);
 	while (i < max_iter && !result.hit)
 	{
 		i++;
-		float t_max_min;
-		if (t_max_x < t_max_y)
+        int min_index = 2;
+		/*if (t_max.x < t_max.y)
 		{
-			if (t_max_x < t_max_z)
+			if (t_max.x < t_max.z)
 			{
-				t_max_min = t_max_x;
-				t_max_x += t_dx;
-				cell_x += step_x;
-				
-				normal = vec3(1.0, 0.0, 0.0);
+				min_index = 0;
+                t_max.x += t_delta.x;
+                cell_coord.x += step.x;
 			}
 			else
 			{
-				t_max_min = t_max_z;
-				t_max_z += t_dz;
-				cell_z += step_z;
-				
-				normal = vec3(0.0, 0.0, 1.0);
+				min_index = 2;
+                t_max.z += t_delta.z;
+                cell_coord.z += step.z;
 			}
 		}
 		else
 		{
-			if (t_max_y < t_max_z)
+			if (t_max.y < t_max.z)
 			{
-				t_max_min = t_max_y;
-				t_max_y += t_dy;
-				cell_y += step_y;
-				
-				normal = vec3(0.0, 1.0, 0.0);
+				min_index = 1;
+                t_max.y += t_delta.y;
+                cell_coord.y += step.y;
 			}
 			else
 			{
-				t_max_min = t_max_z;
-				t_max_z += t_dz;
-				cell_z += step_z;
-				
-				normal = vec3(0.0, 0.0, 1.0);
+				min_index = 2;
+                t_max.z += t_delta.z;
+                cell_coord.z += step.z;
 			}
-		}
-
-		if (cell_x >= 0 && cell_y >= 0 && cell_z >= 0 && cell_x < grid_size.x && cell_y < grid_size.y && cell_z < grid_size.z)
+		}*/
+        
+        if (t_max.x < t_max.y && t_max.x < t_max.z)
+        {
+            min_index = 0;
+            t_max.x += t_delta.x;
+            cell_coord.x += step.x;
+        }
+        else if (t_max.y < t_max.x && t_max.y < t_max.z)
+        {
+            min_index = 1;
+            t_max.y += t_delta.y;
+            cell_coord.y += step.y;
+        }
+        else
+        {
+            t_max.z += t_delta.z;
+            cell_coord.z += step.z;
+        }
+        
+		if (cell_coord.x >= 0 && cell_coord.y >= 0 && cell_coord.z >= 0 && cell_coord.x < grid_size.x && cell_coord.y < grid_size.y && cell_coord.z < grid_size.z)
 		{
-			int grid_index = cell_x*(grid_size.y*grid_size.z) + cell_y*grid_size.z + cell_z;
+			int grid_index = cell_coord.x*(grid_size.y*grid_size.z) + cell_coord.y*grid_size.z + cell_coord.z;
 			if (grid_data[grid_index] != 0)
 			{
-				result.point = start + t_max_min * ray;
-				result.normal = normal;
+				result.point = start + t_max[min_index] * ray;
+				result.normal[min_index] = 1.0;
 				result.hit = true;
 				result.iteration = i;
 				break;
@@ -154,7 +153,7 @@ void main()
 	vec3 ray = normalize(screen_coord - camera_origin);
 	ray = vec3(ray.x, ray.y*cos_a_y-ray.z*sin_a_y, ray.y*sin_a_y+ray.z*cos_a_y);
 	ray = vec3(ray.x*cos_a-ray.z*sin_a, ray.y, ray.x*sin_a+ray.z*cos_a);
-	
+
 	vec3 start = start_position;
 	vec3 light_position = vec3(10000, 5000, 10000);
 	
@@ -162,17 +161,32 @@ void main()
 	
 	ivec3 grid_size = ivec3(size_data[0], size_data[1], size_data[2]);
 	
-	castRay(start, ray, 200, result);
+	castRay(start, ray, 40, result);
+    
+    float cell_size = 10.0;
 	
 	if (result.hit)
-	{
-		pixel = vec4(result.normal, 1.0);
-		
-		vec3 point_to_light = light_position - result.point;
+	{   
+        if (result.normal.x == 1.0)
+        {
+            vec2 tex_coord = fract(result.point.yz / cell_size);
+            pixel = vec4(result.normal*length(tex_coord), 1.0);
+		}
+        else if (result.normal.y == 1.0)
+        {
+            vec2 tex_coord = fract(result.point.xz / cell_size);
+            pixel = vec4(result.normal*length(tex_coord), 1.0);
+		}
+        else if (result.normal.z == 1.0)
+        {
+            vec2 tex_coord = fract(result.point.xy / cell_size);
+            pixel = vec4(result.normal*length(tex_coord), 1.0);
+		}
+		/*vec3 point_to_light = light_position - result.point;
 		vec3 light_ray = normalize(point_to_light);
 		
 		HitPoint light_point;
-		castRay(result.point-light_ray*0.001, light_ray, 50, light_point);
+		castRay(result.point+result.normal*0.001, light_ray, 1, light_point);
 		
 		if (light_point.hit)
 		{
@@ -181,11 +195,10 @@ void main()
 		else
 		{
 			float intensity = clamp(dot(result.normal, light_ray), 0.7, 1.0);
-			
 			pixel = vec4(intensity*pixel.xyz, 1.0);
-		}
+		}*/
 		
-		pixel = vec4(pixel.xyz+vec3(result.iteration/200.0), 1.0);
+		//pixel = vec4(pixel.xyz+vec3(result.iteration/200.0), 1.0);
 	}
 	
 	//pixel = vec4(vec3(float(result.iteration) / 200.0), 1.0);

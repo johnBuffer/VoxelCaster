@@ -12,8 +12,8 @@
 
 int main()
 {
-    int WIN_WIDTH = 1024;
-    int WIN_HEIGHT = 1024;
+    int WIN_WIDTH = 512;
+    int WIN_HEIGHT = 512;
 
 	int RENDER_WIDTH = 512;
 	int RENDER_HEIGHT = 512;
@@ -60,7 +60,7 @@ int main()
 	glUniform2i(4, RENDER_WIDTH, RENDER_HEIGHT);
 	//GLint dest_text_location = glGetUniformLocation(compute_shader, "img_output");
 	
-	glm::vec3 start_position(100, 100, 100);
+	glm::vec3 start_position(300, 300, 300);
 
 	// DATA
 	const int grid_size_x = 1000;
@@ -78,7 +78,7 @@ int main()
 	{
 		for (int z = 0; z < grid_size_z; z++)
 		{
-			int max_height = 50;
+			int max_height = 25;
 			int height = max_height / 2 * myNoise.GetNoise(x, z);
 
 			for (int y(0); y < max_height + height; ++y)
@@ -206,8 +206,8 @@ int main()
 		// Mouse management
 		double mouse_x_pos, mouse_y_pos;
 		glfwGetCursorPos(window, &mouse_x_pos, &mouse_y_pos);
-		camera_horizontal_angle = (mouse_x_pos - RENDER_WIDTH / 2)*0.01;
-		camera_vertical_angle   = (mouse_y_pos - RENDER_WIDTH / 2)*0.01;
+		camera_horizontal_angle = (mouse_x_pos - RENDER_WIDTH / 2)*0.005;
+		camera_vertical_angle   = (mouse_y_pos - RENDER_WIDTH / 2)*0.005;
 		glUniform2f(3, camera_horizontal_angle, camera_vertical_angle);
 
 		glDispatchCompute((GLuint)RENDER_WIDTH, (GLuint)RENDER_HEIGHT, 1);
