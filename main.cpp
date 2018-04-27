@@ -54,7 +54,7 @@ int main()
 	*/
 
 	GLuint texture = genTexture(RENDER_WIDTH, RENDER_HEIGHT);
-	GLuint compute_shader = createComputeShader("test.cs", true);
+	GLuint compute_shader = createComputeShader("gpu_raycaster.cs", true);
 
 	glUseProgram(compute_shader);
 	glUniform2i(4, RENDER_WIDTH, RENDER_HEIGHT);
