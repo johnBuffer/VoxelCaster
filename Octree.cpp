@@ -3,7 +3,7 @@
 
 Octree::Octree() :
 	m_max_scale(10),
-	m_min_scale(4)
+	m_min_scale(1)
 {
 	m_elements.emplace_back(0);
 }

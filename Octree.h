@@ -2,13 +2,6 @@
 
 #include <vector>
 
-struct HitPoint3D
-{
-	glm::vec3 point;
-	int iterations;
-	bool m_hit;
-};
-
 struct OctreeElement
 {
 	OctreeElement() :
