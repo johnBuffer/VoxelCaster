@@ -59,17 +59,21 @@ int main()
 	glUniform2i(4, RENDER_WIDTH, RENDER_HEIGHT);
 	//GLint dest_text_location = glGetUniformLocation(compute_shader, "img_output");
 	
-	glm::vec3 start_position(300, 300, 300);
+	glm::vec3 start_position(450, 600, 450);
 
 	// DATA
 	const int octree_size = 1024;
 
 	Octree octree;
+	octree.addElement(500, 500, 500);
+	/*octree.addElement(502, 500, 500);
+	octree.addElement(504, 500, 500);
+	octree.addElement(506, 500, 500);*/
 
 	FastNoise myNoise; // Create a FastNoise object
 	myNoise.SetNoiseType(FastNoise::SimplexFractal); // Set the desired noise type
 
-	for (int x = 0; x < octree_size; x++)
+	/*for (int x = 0; x < octree_size; x++)
 	{
 		for (int z = 0; z < octree_size; z++)
 		{
@@ -81,7 +85,7 @@ int main()
 				octree.addElement(x, y, z);
 			}
 		}
-	}
+	}*/
 
 	/*for (int i(100); i--;)
 	{
