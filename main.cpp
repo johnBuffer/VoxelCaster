@@ -14,8 +14,8 @@ int main()
     int WIN_WIDTH = 1024;
     int WIN_HEIGHT = 1024;
 
-	int RENDER_WIDTH = 512;
-	int RENDER_HEIGHT = 512;
+	int RENDER_WIDTH = 256;
+	int RENDER_HEIGHT = 256;
 
 	// Initialize GLFW
 	if (!glfwInit())
@@ -69,10 +69,29 @@ int main()
 	FastNoise myNoise; // Create a FastNoise object
 	myNoise.SetNoiseType(FastNoise::SimplexFractal); // Set the desired noise type
 
-	for (int i(100000); i--;)
+	for (int x = 0; x < 1024; x++)
+	{
+		for (int z = 0; z < 1024; z++)
+		{
+			int max_height = 25;
+			int height = max_height / 2 * myNoise.GetNoise(x, z);
+
+			for (int y(0); y < max_height + height; ++y)
+			{
+				octree.addElement(x, y, z);
+			}
+		}
+	}
+
+	/*for (int i(100); i--;)
+	{
+		octree.addElement(0, 0, 0);
+	}*/
+
+	/*while (octree.getSize() < 20000)
 	{
 		octree.addElement(rand() % octree_size, rand() % octree_size, rand() % octree_size);
-	}
+	}*/
 
 	std::cout << "Octree size: " << octree.getSize() << std::endl;
 
