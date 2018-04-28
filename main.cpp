@@ -69,9 +69,9 @@ int main()
 	FastNoise myNoise; // Create a FastNoise object
 	myNoise.SetNoiseType(FastNoise::SimplexFractal); // Set the desired noise type
 
-	for (int x = 0; x < 1024; x++)
+	for (int x = 0; x < octree_size; x++)
 	{
-		for (int z = 0; z < 1024; z++)
+		for (int z = 0; z < octree_size; z++)
 		{
 			int max_height = 25;
 			int height = max_height / 2 * myNoise.GetNoise(x, z);
