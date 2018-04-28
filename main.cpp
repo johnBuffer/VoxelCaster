@@ -4,8 +4,7 @@
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 
-#include "Grid2D.h"
-#include "Grid3D.h"
+#include "Octree.h"
 #include "ShaderProgram.h"
 #include "utils.h"
 #include "FastNoise.h"
@@ -54,7 +53,7 @@ int main()
 	*/
 
 	GLuint texture = genTexture(RENDER_WIDTH, RENDER_HEIGHT);
-	GLuint compute_shader = createComputeShader("gpu_raycaster.cs", true);
+	GLuint compute_shader = createComputeShader("gpu_raycaster.comp", true);
 
 	glUseProgram(compute_shader);
 	glUniform2i(4, RENDER_WIDTH, RENDER_HEIGHT);
@@ -63,18 +62,21 @@ int main()
 	glm::vec3 start_position(300, 300, 300);
 
 	// DATA
-	const int grid_size_x = 500;
-	const int grid_size_y = 50;
-	const int grid_size_z = 500;
+	const int octree_size = 1024;
 
-	Grid3D grid(grid_size_x, grid_size_y, grid_size_z, 10);
-
-	const int grid_size[] = { grid_size_x, grid_size_y, grid_size_z };
+	Octree octree;
 
 	FastNoise myNoise; // Create a FastNoise object
 	myNoise.SetNoiseType(FastNoise::SimplexFractal); // Set the desired noise type
 
-	for (int x = 0; x < grid_size_x; x++)
+	for (int i(100000); i--;)
+	{
+		octree.addElement(rand() % octree_size, rand() % octree_size, rand() % octree_size);
+	}
+
+	std::cout << "Octree size: " << octree.getSize() << std::endl;
+
+	/*for (int x = 0; x < grid_size_x; x++)
 	{
 		for (int z = 0; z < grid_size_z; z++)
 		{
@@ -86,7 +88,7 @@ int main()
 				grid(x, y, z) = 1;
 			}
 		}
-	}
+	}*/
 
 	/*for (int i(100000); i--;)
 	{
@@ -100,18 +102,12 @@ int main()
 
 	float camera_horizontal_angle = 0.0;
 	float camera_vertical_angle = 0.0;
-
-	GLuint grid_size_buffer;
-	glGenBuffers(1, &grid_size_buffer);
-	glBindBuffer(GL_SHADER_STORAGE_BUFFER, grid_size_buffer);
-	glBufferData(GL_SHADER_STORAGE_BUFFER, 3 * sizeof(int), grid_size, GL_STATIC_DRAW);
-	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, grid_size_buffer);
 	
-	GLuint grid_buffer;
-	glGenBuffers(1, &grid_buffer);
-	glBindBuffer(GL_SHADER_STORAGE_BUFFER, grid_buffer);
-	glBufferData(GL_SHADER_STORAGE_BUFFER, grid_size_x*grid_size_y*grid_size_z * sizeof(int), grid.data(), GL_STATIC_DRAW);
-	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, grid_buffer);
+	GLuint octree_buffer;
+	glGenBuffers(1, &octree_buffer);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, octree_buffer);
+	glBufferData(GL_SHADER_STORAGE_BUFFER, octree.getSize() * sizeof(OctreeElement), octree.getData(), GL_STATIC_DRAW);
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, octree_buffer);
 	
 	ShaderProgram shader(ShaderProgram::base_vertex, ShaderProgram::base_fragment, true);
 	//shader.setUniform("srcTex", tex_output);
