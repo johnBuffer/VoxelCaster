@@ -54,7 +54,7 @@ int main()
 	*/
 
 	GLuint texture = genTexture(RENDER_WIDTH, RENDER_HEIGHT);
-	GLuint compute_shader = createComputeShader("test.cs", true);
+	GLuint compute_shader = createComputeShader("test.comp", true);
 
 	glUseProgram(compute_shader);
 	glUniform2i(4, RENDER_WIDTH, RENDER_HEIGHT);
@@ -149,7 +149,7 @@ int main()
 	glfwSetInputMode(window, GLFW_STICKY_KEYS, GL_TRUE);
 	while (glfwGetKey(window, GLFW_KEY_ESCAPE) != GLFW_PRESS && glfwWindowShouldClose(window) == 0)
 	{
-		time += 0.005;
+		//time += 0.005;
 
 		light_position = glm::vec3(500 * cos(time) + 500, 500+200*sin(time), 500 * sin(time) + 500);
 
