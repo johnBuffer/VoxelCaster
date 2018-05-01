@@ -5,7 +5,7 @@ precision highp float;
 struct OctreeElement
 {
 	int subs;
-	int mask;
+	uint mask;
 };
 
 layout(local_size_x = 1, local_size_y = 1) in;
@@ -185,9 +185,11 @@ void castRay(in vec3 start, in vec3 ray, in int max_iter, out HitPoint result)
 		int sub_y_coord     = (sub_index - (sub_z_coord<<2))>>1;
 		int sub_x_coord     = sub_index - (sub_y_coord<<1) - (sub_z_coord<<2);
 		ivec3 sub_coords    = ivec3(sub_x_coord, sub_y_coord, sub_z_coord);
+
+		uint current_mask = current_elem.mask << sub_index;
 	
 		// If current sub empty -> move to next one
-		if (current_elem.subs[sub_index] == -1 || context.advance)
+		if ((current_mask & 0x8000) != 0x8000 || context.advance)
 		{
 			if (context.advance) { stack[current_stack_index].advance = false; }
 
@@ -218,8 +220,8 @@ void castRay(in vec3 start, in vec3 ray, in int max_iter, out HitPoint result)
 		// If not, go deeper
 		else
 		{
-			OctreeElement sub_element = octree[current_elem.subs[sub_index]];
-			if (sub_element.is_leaf == 1 && sub_element.is_empty == 0)
+			OctreeElement sub_element = octree[current_elem.subs + sub_index];
+			if ((current_mask & 0x80) == 0x80)
 			{
 				vec3 hit_abs = context.abs_coords.x + context.t_max_min*ray;
 
@@ -239,7 +241,7 @@ void castRay(in vec3 start, in vec3 ray, in int max_iter, out HitPoint result)
 					break;
 				}
 
-				int new_index = current_elem.subs[sub_index];
+				int new_index = current_elem.subs + sub_index;
 
 				stack[current_stack_index].index = new_index;
 				stack[current_stack_index].scale = context.scale - 1;

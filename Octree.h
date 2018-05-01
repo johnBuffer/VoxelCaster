@@ -10,7 +10,7 @@ struct OctreeElement
 	{}
 
 	int32_t subs;
-	uint16_t mask;
+	uint32_t mask;
 
 	//int32_t padding;
 };
