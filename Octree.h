@@ -5,26 +5,12 @@
 struct OctreeElement
 {
 	OctreeElement() :
-		index(-1),
-		is_leaf(1),
-		is_empty(1)
-	{
-		for (int i(8); i--;)
-		{
-			subs[i] = -1;
-		}
-	}
+		subs(-1),
+		mask(0xFF)
+	{}
 
-	OctreeElement(int id) :
-		OctreeElement()
-	{
-		index = id;
-	}
-
-	int32_t index;
-	int32_t is_leaf;
-	int32_t is_empty;
-	int32_t subs[8];
+	int32_t subs;
+	uint16_t mask;
 
 	//int32_t padding;
 };
@@ -38,9 +24,15 @@ public:
 	uint32_t getSize() const;
 
 	void addElement(int x, int y, int z);
+	void optimize();
+
+	void print() const;
 
 private:
 	int m_max_scale;
 	int m_min_scale;
 	std::vector<OctreeElement> m_elements;
+
+	int optimize_element(const OctreeElement& element, std::vector<OctreeElement>& new_memory);
+	void print_element(const OctreeElement& element, const std::string& indent) const;
 };

@@ -4,10 +4,8 @@ precision highp float;
 
 struct OctreeElement
 {
-	int index;
-	int is_leaf;
-	int is_empty;
-	int subs[8];
+	int subs;
+	int mask;
 };
 
 layout(local_size_x = 1, local_size_y = 1) in;
@@ -77,6 +75,70 @@ void initialize_context(inout OctreeContext context, in ivec3 dir, in vec3 t_del
 	context.t_max = ((dir + sub_coords)*real_size - context.start_coords) * inv_ray;
 }
 
+void advance(inout OctreeContext context, in ivec3 step_vec, inout ivec3 sub_coords, inout HitPoint result)
+{
+	if (context.t_max.x < context.t_max.y)
+	{
+		if (context.t_max.x < context.t_max.z)
+		{
+			sub_coords.x += step_vec.x;
+			context.t_max_min = context.t_max.x;
+			context.t_max.x  += context.t_delta.x;
+			result.normal = vec3(-step_vec.x, 0.0, 0.0);
+		}
+		else
+		{
+			sub_coords.z += step_vec.z;
+			context.t_max_min = context.t_max.z;
+			context.t_max.z  += context.t_delta.z;
+			result.normal = vec3(0.0, 0.0, -step_vec.z);
+		}
+	}
+	else
+	{
+		if (context.t_max.y < context.t_max.z)
+		{
+			sub_coords.y += step_vec.y;
+			context.t_max_min = context.t_max.y;
+			context.t_max.y  += context.t_delta.y;
+			result.normal = vec3(0.0, -step_vec.y, 0.0);
+		}
+		else
+		{
+			sub_coords.z += step_vec.z;
+			context.t_max_min = context.t_max.z;
+			context.t_max.z  += context.t_delta.z;
+			result.normal = vec3(0.0, 0.0, -step_vec.z);
+		}
+	}
+}
+
+ivec3 next_sub(in OctreeContext context, in ivec3 step_vec)
+{
+	int sub_index       = context.sub_index;
+	int sub_z_coord     = sub_index>>2;
+	int sub_y_coord     = (sub_index - (sub_z_coord<<2))>>1;
+	int sub_x_coord     = sub_index - (sub_y_coord<<1) - (sub_z_coord<<2);
+	ivec3 sub_coords    = ivec3(sub_x_coord, sub_y_coord, sub_z_coord);
+
+	if (context.t_max.x < context.t_max.y)
+	{
+		if (context.t_max.x < context.t_max.z)
+			sub_coords.x += step_vec.x;
+		else
+			sub_coords.z += step_vec.z;
+	}
+	else
+	{
+		if (context.t_max.y < context.t_max.z)
+			sub_coords.y += step_vec.y;
+		else
+			sub_coords.z += step_vec.z;
+	}
+
+	return sub_coords;
+}
+
 void castRay(in vec3 start, in vec3 ray, in int max_iter, out HitPoint result)
 {
 	int iter_counter = 0;
@@ -129,40 +191,7 @@ void castRay(in vec3 start, in vec3 ray, in int max_iter, out HitPoint result)
 		{
 			if (context.advance) { stack[current_stack_index].advance = false; }
 
-			if (context.t_max.x < context.t_max.y)
-			{
-				if (context.t_max.x < context.t_max.z)
-				{
-					sub_coords.x += step_vec.x;
-					stack[current_stack_index].t_max_min = context.t_max.x;
-					stack[current_stack_index].t_max.x  += context.t_delta.x;
-					result.normal = vec3(-step_vec.x, 0.0, 0.0);
-				}
-				else
-				{
-					sub_coords.z += step_vec.z;
-					stack[current_stack_index].t_max_min = context.t_max.z;
-					stack[current_stack_index].t_max.z  += context.t_delta.z;
-					result.normal = vec3(0.0, 0.0, -step_vec.z);
-				}
-			}
-			else
-			{
-				if (context.t_max.y < context.t_max.z)
-				{
-					sub_coords.y += step_vec.y;
-					stack[current_stack_index].t_max_min = context.t_max.y;
-					stack[current_stack_index].t_max.y  += context.t_delta.y;
-					result.normal = vec3(0.0, -step_vec.y, 0.0);
-				}
-				else
-				{
-					sub_coords.z += step_vec.z;
-					stack[current_stack_index].t_max_min = context.t_max.z;
-					stack[current_stack_index].t_max.z  += context.t_delta.z;
-					result.normal = vec3(0.0, 0.0, -step_vec.z);
-				}
-			}
+			advance(stack[current_stack_index], step_vec, sub_coords, result);
 
 			stack[current_stack_index].current_coords = context.start_coords + stack[current_stack_index].t_max_min*ray; // MODIF
 
@@ -173,15 +202,17 @@ void castRay(in vec3 start, in vec3 ray, in int max_iter, out HitPoint result)
 				stack[current_stack_index].sub_index = sub_coords.x + (sub_coords.y<<1) + (sub_coords.z<<2);
 			}
 			else
-			{
+			{	
 				current_stack_index--;
 				if (current_stack_index<0)
 				{
 					result.debug_color = vec3(0.0, 1.0, 0.0);
 					break;
 				}
-				
-				stack[current_stack_index].advance = true;
+				else
+				{
+					stack[current_stack_index].advance = true;
+				}
 			}
 		}
 		// If not, go deeper

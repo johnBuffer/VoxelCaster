@@ -14,8 +14,8 @@ int main()
     int WIN_WIDTH = 1024;
     int WIN_HEIGHT = 1024;
 
-	int RENDER_WIDTH = 256;
-	int RENDER_HEIGHT = 256;
+	int RENDER_WIDTH = 521/2;
+	int RENDER_HEIGHT = 512/2;
 
 	// Initialize GLFW
 	if (!glfwInit())
@@ -65,6 +65,7 @@ int main()
 	const int octree_size = 1024;
 
 	Octree octree;
+	//octree.addElement(0, 6, 0);
 	/*octree.addElement(500, 500, 500);
 	octree.addElement(502, 500, 500);
 	octree.addElement(504, 500, 500);
@@ -92,12 +93,17 @@ int main()
 		octree.addElement(0, 0, 0);
 	}*/
 
-	/*while (octree.getSize() < 20000)
+	/*while (octree.getSize() < 20)
 	{
 		octree.addElement(rand() % octree_size, rand() % octree_size, rand() % octree_size);
 	}*/
 
-	std::cout << "Octree size: " << octree.getSize() << std::endl;
+	//octree.print();
+
+	/*std::cout << "Optimizing memory..." << std::endl;
+	octree.optimize();
+	//octree.print();
+	std::cout << "Done" << std::endl;*/
 
 	/*for (int x = 0; x < grid_size_x; x++)
 	{
@@ -112,6 +118,8 @@ int main()
 			}
 		}
 	}*/
+
+	std::cout << "Octree size: " << octree.getSize() << std::endl;
 
 	/*for (int i(100000); i--;)
 	{
