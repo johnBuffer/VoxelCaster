@@ -60,7 +60,7 @@ int main()
 	
 	glm::vec3 start_position(450, 600, 450);
 
-	int octree_size = 256;
+	int octree_size = 512;
 	Octree octree;
 
 	FastNoise myNoise; // Create a FastNoise object

@@ -41,6 +41,8 @@ struct HitPoint
 	vec3 normal;
 	int iteration;
 
+	vec3 point;
+
 	bool hit;
 	//vec3 debug_color;
 };
@@ -157,7 +159,7 @@ void castRay(in vec3 start, in vec3 ray, in int max_iter, out HitPoint result)
 		// If current sub empty -> move to next one
 		if (!bool(current_mask & 0x8000) || skip)
 		{
-			if (skip) { skip = false; }
+			if (skip) skip = false;
 
 			advance(stack[current_stack_index], step_vec, t_delta, result);
 
@@ -182,7 +184,15 @@ void castRay(in vec3 start, in vec3 ray, in int max_iter, out HitPoint result)
 			if (bool(current_mask & 0x80))
 			{
 				result.hit = true;
-				//result.debug_color = vec3(1.0, 1.0, 0.0);
+
+				// Compute absolute hit point position
+				float total_t_max = 0;
+				for (int i=0; i<current_stack_index; ++i)
+				{
+					total_t_max += stack[i].t_max_min;
+				}
+				
+				result.point = stack[0].start_coords + total_t_max*ray;
 				break;
 			}
 			else
@@ -199,7 +209,7 @@ void castRay(in vec3 start, in vec3 ray, in int max_iter, out HitPoint result)
 				}
 
 				// Translating relative coords into sub context
-				stack[current_stack_index].index = current_elem.subs + sub_index;;
+				stack[current_stack_index].index = current_elem.subs + sub_index;
 				stack[current_stack_index].start_coords = context.start_coords + context.t_max_min*ray - vec3(context.sub_coords)*current_size;
 
 				// Initializing sub raycast 
@@ -239,10 +249,20 @@ void main()
 	castRay(start_position, ray, max_iter, result);
 	pixel = vec3(result.iteration/float(max_iter));
 
-	/*if (result.hit)
+	vec3 light_position = vec3(1000, 200, 1000);
+
+	if (result.hit)
 	{
-		pixel = abs(result.normal);
-	}*/
+		pixel = vec3(length(start_position-result.point)) / 512.0;
+		/*vec3 light_ray = light_position - (result.point + result.normal*0.1);
+
+		HitPoint light_point;
+		castRay(result.point, normalize(light_ray), max_iter/2, light_point);
+
+		//pixel = abs(result.normal);
+		if (light_point.hit)
+			pixel *= 0.25;*/
+	}
 	//pixel = result.debug_color;
 	//pixel = abs(result.normal);
 	
