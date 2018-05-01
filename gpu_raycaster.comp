@@ -28,7 +28,7 @@ layout(location=5) uniform vec3 light_position;
 struct OctreeContext
 {
 	int index;
-	int sub_index;
+	ivec3 sub_coords;
 
 	vec3 start_coords;
 
@@ -41,7 +41,7 @@ struct HitPoint
 	vec3 normal;
 	int iteration;
 
-	vec3 debug_color;
+	//vec3 debug_color;
 	
 	bool hit;
 };
@@ -49,31 +49,35 @@ struct HitPoint
 void initialize_context(inout OctreeContext context, in ivec3 dir, in vec3 inv_ray, int current_size)
 {
 	// Compute sub_index
-	ivec3 sub_coords = min(ivec3(context.start_coords / current_size), 1);
+	context.sub_coords = min(ivec3(context.start_coords / current_size), 1);
 	
-	context.sub_index = sub_coords.x + (sub_coords.y<<1) + (sub_coords.z<<2);
+	//context.sub_index = context.sub_coords.x + (context.sub_coords.y<<1) + (context.sub_coords.z<<2);
 
 	// Compute the value of t for first intersection in x and y
 	context.t_max_min = 0;
 
 	// Compute the value of t for first intersection in x and y
-	context.t_max = ((dir + sub_coords)*current_size - context.start_coords) * inv_ray;
+	context.t_max = ((dir + context.sub_coords)*current_size - context.start_coords) * inv_ray;
 }
 
-void advance(inout OctreeContext context, in ivec3 step_vec, vec3 t_delta, inout ivec3 sub_coords, inout HitPoint result)
+void advance(inout OctreeContext context, in ivec3 step_vec, vec3 t_delta, inout HitPoint result)
 {
 	if (context.t_max.x < context.t_max.y)
 	{
 		if (context.t_max.x < context.t_max.z)
 		{
-			sub_coords.x += step_vec.x;
+			context.sub_coords.x += step_vec.x;
+			//context.sub_index += step_vec.x;
+
 			context.t_max_min = context.t_max.x;
 			context.t_max.x  += t_delta.x;
 			result.normal = vec3(-step_vec.x, 0.0, 0.0);
 		}
 		else
 		{
-			sub_coords.z += step_vec.z;
+			context.sub_coords.z += step_vec.z;
+			//context.sub_index += 4*step_vec.z;
+
 			context.t_max_min = context.t_max.z;
 			context.t_max.z  += t_delta.z;
 			result.normal = vec3(0.0, 0.0, -step_vec.z);
@@ -83,47 +87,58 @@ void advance(inout OctreeContext context, in ivec3 step_vec, vec3 t_delta, inout
 	{
 		if (context.t_max.y < context.t_max.z)
 		{
-			sub_coords.y += step_vec.y;
+			context.sub_coords.y += step_vec.y;
+			//context.sub_index += 2*step_vec.y;
+
 			context.t_max_min = context.t_max.y;
 			context.t_max.y  += t_delta.y;
 			result.normal = vec3(0.0, -step_vec.y, 0.0);
 		}
 		else
 		{
-			sub_coords.z += step_vec.z;
+			context.sub_coords.z += step_vec.z;
+			//context.sub_index += 4*step_vec.z;
+
 			context.t_max_min = context.t_max.z;
 			context.t_max.z  += t_delta.z;
 			result.normal = vec3(0.0, 0.0, -step_vec.z);
 		}
 	}
+
+	//context.sub_index = context.sub_coords.x + 2*context.sub_coords.y + 4*context.sub_coords.z;
+}
+
+bool is_valid_sub_coords(in ivec3 sub_coords)
+{
+	return clamp(sub_coords, 0, 1) == sub_coords;
 }
 
 void castRay(in vec3 start, in vec3 ray, in int max_iter, out HitPoint result)
 {
 	int iter_counter = 0;
-	int max_scale = 10;
+	const int max_scale = 10;
 	
 	result.hit = false;
-	result.debug_color = vec3(0.0);
+	//result.debug_color = vec3(0.0);
 
 	// We assume we have a ray vector:
 	// vec = start + t*v
 	
 	// Initialization of global parameters
-	int scale       = max_scale-1;
-	int max_size  = 1<<(scale);
-	vec3  inv_ray   = 1.0 / ray;
-	ivec3 step_vec  = ivec3(sign(ray));
-	ivec3 dir       = max(step_vec, 0);
+	int scale      = max_scale-1;
+	int max_size   = 1<<(scale);
+	vec3  inv_ray  = 1.0 / ray;
+	ivec3 step_vec = ivec3(sign(ray));
+	ivec3 dir      = max(step_vec, 0);
 	vec3 t_delta   = abs(vec3(max_size) * inv_ray);
 	bool skip      = false;
 	int current_stack_index = 0;
 
-	const int max_stack_size = 11;
+	const int max_stack_size = max_scale+1;
 	OctreeContext stack[max_stack_size];
 	// index, sub_size, start.x, start.y
 	stack[0].index = 0;
-	stack[0].start_coords = start; // MODIF
+	stack[0].start_coords = start;
 
 	initialize_context(stack[0], dir, inv_ray, max_size);
 
@@ -136,36 +151,24 @@ void castRay(in vec3 start, in vec3 ray, in int max_iter, out HitPoint result)
 		OctreeElement current_elem = octree[context.index];
 
 		int current_size    = 1<<scale;
-
-		int sub_index       = context.sub_index;
-		int sub_z_coord     = sub_index>>2;
-		int sub_y_coord     = (sub_index - (sub_z_coord<<2))>>1;
-		int sub_x_coord     = sub_index - (sub_y_coord<<1) - (sub_z_coord<<2);
-		ivec3 sub_coords    = ivec3(sub_x_coord, sub_y_coord, sub_z_coord);
+		int sub_index       = context.sub_coords.x + (context.sub_coords.y<<1) + (context.sub_coords.z<<2);
 
 		int current_mask = (octree[context.index].mask << sub_index);
 	
 		// If current sub empty -> move to next one
-		if ((current_mask & 0x8000) != 0x8000|| skip)
+		if (!bool(current_mask & 0x8000) || skip)
 		{
 			if (skip) { skip = false; }
 
-			advance(stack[current_stack_index], step_vec, t_delta, sub_coords, result);
+			advance(stack[current_stack_index], step_vec, t_delta, result);
 
-			if (sub_coords.x > -1 && sub_coords.x < 2 && 
-				sub_coords.y > -1 && sub_coords.y < 2 && 
-				sub_coords.z > -1 && sub_coords.z < 2)
-			{
-				stack[current_stack_index].sub_index = sub_coords.x + (sub_coords.y<<1) + (sub_coords.z<<2);
-			}
-			else
+			if (!is_valid_sub_coords(stack[current_stack_index].sub_coords))
 			{
 				scale++;
 				current_stack_index--;
 				t_delta *= 2;
 				if (current_stack_index<0)
 				{
-					result.debug_color = vec3(0.0, 1.0, 0.0);
 					break;
 				}
 				else
@@ -177,10 +180,10 @@ void castRay(in vec3 start, in vec3 ray, in int max_iter, out HitPoint result)
 		// If not, go deeper
 		else
 		{
-			if ((current_mask & 0x80) == 0x80)
+			if (bool(current_mask & 0x80))
 			{
 				result.hit = true;
-				result.debug_color = vec3(1.0, 1.0, 0.0);
+				//result.debug_color = vec3(1.0, 1.0, 0.0);
 				break;
 			}
 			else
@@ -192,25 +195,18 @@ void castRay(in vec3 start, in vec3 ray, in int max_iter, out HitPoint result)
 
 				if (current_stack_index > max_stack_size-1)
 				{
-					result.debug_color = vec3(0.0, 0.0, 0.0);
+					//result.debug_color = vec3(0.0, 0.0, 0.0);
 					break;
 				}
 
-				int new_index = current_elem.subs + sub_index;
-
 				// Translating relative coords into sub context
-				stack[current_stack_index].index = new_index;
-				stack[current_stack_index].start_coords = context.start_coords + context.t_max_min*ray - vec3(sub_coords)*current_size;
+				stack[current_stack_index].index = current_elem.subs + sub_index;;
+				stack[current_stack_index].start_coords = context.start_coords + context.t_max_min*ray - vec3(context.sub_coords)*current_size;
 
 				// Initializing sub raycast 
-				initialize_context(stack[current_stack_index], dir, inv_ray, current_size/2);
+				initialize_context(stack[current_stack_index], dir, inv_ray, current_size>>1);
 			}
 		}
-	}
-
-	if (iter_counter == max_iter)
-	{
-		result.debug_color = vec3(0.0, 0.0, 1.0);
 	}
 
 	result.iteration = iter_counter;
@@ -240,7 +236,7 @@ void main()
 		
 	HitPoint result;
 	
-	int max_iter = 128;
+	int max_iter = 256;
 	castRay(start_position, ray, max_iter, result);
 	pixel = vec3(result.iteration/float(max_iter));
 

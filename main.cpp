@@ -11,11 +11,11 @@
 
 int main()
 {
-    int WIN_WIDTH = 1920;
-    int WIN_HEIGHT = 1080;
+    int WIN_WIDTH = 1024;
+    int WIN_HEIGHT = 1024;
 
-	int RENDER_WIDTH = 1920/4;
-	int RENDER_HEIGHT = 1080/4;
+	int RENDER_WIDTH = 512/2;
+	int RENDER_HEIGHT = 512/2;
 
 	// Initialize GLFW
 	if (!glfwInit())
