@@ -70,10 +70,13 @@ void Octree::addElement(int x, int y, int z)
 				last_element.mask &= ~(0x80 >> last_sub);
 			}
 
-			// Allocate new subs
-			for (int i(8); i--;)
+			// Allocate new subs if not leaf
+			if (current_size >= (1 << m_min_scale))
 			{
-				m_elements.emplace_back();
+				for (int i(8); i--;)
+				{
+					m_elements.emplace_back();
+				}
 			}
 		}
 

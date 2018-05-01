@@ -11,11 +11,11 @@
 
 int main()
 {
-    int WIN_WIDTH = 1024;
-    int WIN_HEIGHT = 1024;
+    int WIN_WIDTH = 1920;
+    int WIN_HEIGHT = 1080;
 
-	int RENDER_WIDTH = 521/2;
-	int RENDER_HEIGHT = 512/2;
+	int RENDER_WIDTH = 1920/4;
+	int RENDER_HEIGHT = 1080/4;
 
 	// Initialize GLFW
 	if (!glfwInit())
@@ -39,7 +39,6 @@ int main()
 	}
 	glfwMakeContextCurrent(window);
 	glfwSetInputMode(window, GLFW_STICKY_KEYS, 1);
-	glfwSwapInterval(0);
 
 	// Initialize GLEW
 	glewExperimental = true; // Nécessaire dans le profil de base
@@ -61,15 +60,8 @@ int main()
 	
 	glm::vec3 start_position(450, 600, 450);
 
-	// DATA
-	const int octree_size = 1024;
-
+	int octree_size = 256;
 	Octree octree;
-	//octree.addElement(0, 6, 0);
-	/*octree.addElement(500, 500, 500);
-	octree.addElement(502, 500, 500);
-	octree.addElement(504, 500, 500);
-	octree.addElement(506, 500, 500);*/
 
 	FastNoise myNoise; // Create a FastNoise object
 	myNoise.SetNoiseType(FastNoise::SimplexFractal); // Set the desired noise type
@@ -78,7 +70,7 @@ int main()
 	{
 		for (int z = 0; z < octree_size; z++)
 		{
-			int max_height = 25;
+			int max_height = 50;
 			int height = max_height / 2 * myNoise.GetNoise(x, z);
 
 			for (int y(0); y < max_height + height; ++y)
@@ -88,48 +80,7 @@ int main()
 		}
 	}
 
-	/*for (int i(100); i--;)
-	{
-		octree.addElement(0, 0, 0);
-	}*/
-
-	/*while (octree.getSize() < 20)
-	{
-		octree.addElement(rand() % octree_size, rand() % octree_size, rand() % octree_size);
-	}*/
-
-	//octree.print();
-
-	/*std::cout << "Optimizing memory..." << std::endl;
-	octree.optimize();
-	//octree.print();
-	std::cout << "Done" << std::endl;*/
-
-	/*for (int x = 0; x < grid_size_x; x++)
-	{
-		for (int z = 0; z < grid_size_z; z++)
-		{
-			int max_height = 25;
-			int height = max_height / 2 * myNoise.GetNoise(x, z);
-
-			for (int y(0); y < max_height + height; ++y)
-			{
-				grid(x, y, z) = 1;
-			}
-		}
-	}*/
-
 	std::cout << "Octree size: " << octree.getSize() << std::endl;
-
-	/*for (int i(100000); i--;)
-	{
-		int x = rand() % grid_size_x;
-		int y = rand() % grid_size_y;
-		int z = rand() % grid_size_z;
-
-		int grid_index = x * (grid_size_y*grid_size_z) + y * grid_size_z + z;
-		grid[grid_index] = 1;
-	}*/
 
 	float camera_horizontal_angle = 0.0;
 	float camera_vertical_angle = 0.0;
