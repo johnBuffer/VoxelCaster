@@ -41,9 +41,8 @@ struct HitPoint
 	vec3 normal;
 	int iteration;
 
-	//vec3 debug_color;
-	
 	bool hit;
+	//vec3 debug_color;
 };
 
 void initialize_context(inout OctreeContext context, in ivec3 dir, in vec3 inv_ray, int current_size)
@@ -151,7 +150,7 @@ void castRay(in vec3 start, in vec3 ray, in int max_iter, out HitPoint result)
 		OctreeElement current_elem = octree[context.index];
 
 		int current_size    = 1<<scale;
-		int sub_index       = context.sub_coords.x + (context.sub_coords.y<<1) + (context.sub_coords.z<<2);
+		int sub_index       = context.sub_coords.x + ((context.sub_coords.y + (context.sub_coords.z<<1))<<1);
 
 		int current_mask = (octree[context.index].mask << sub_index);
 	
