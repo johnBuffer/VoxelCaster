@@ -124,7 +124,9 @@ int main()
 	//camera_vec = glm::normalize(camera_vec);
 	glm::vec3 light_position;
 
-	glfwSetInputMode(window, GLFW_STICKY_KEYS, GL_TRUE);
+	int use_opti = 0;
+
+	glfwSetInputMode(window, GLFW_STICKY_KEYS, GL_FALSE);
 	while (glfwGetKey(window, GLFW_KEY_ESCAPE) != GLFW_PRESS && glfwWindowShouldClose(window) == 0)
 	{
 		time += 0.005;
@@ -163,6 +165,13 @@ int main()
 			start_position.x -= 5;
 		}
 
+		state = glfwGetKey(window, GLFW_KEY_Q);
+		if (state == GLFW_PRESS)
+		{
+			use_opti = !use_opti;
+
+		}
+
 		/*if (glm::length(movement) > 0.0f)
 		{
 			HitPoint3D move_test = grid.castRay(start_position, glm::normalize(movement));
@@ -184,7 +193,9 @@ int main()
 			}
 		}*/
 		start_position += movement;
-
+		
+		std::cout << "Opti: " << use_opti << std::endl;
+		glUniform1i(6, use_opti);
 		glUniform3f(2, start_position.x, start_position.y, start_position.z);
 		glUniform3f(5, light_position.x, light_position.y, light_position.z);
 

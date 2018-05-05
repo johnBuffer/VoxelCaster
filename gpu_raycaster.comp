@@ -25,6 +25,8 @@ layout(location=4) uniform ivec2 render_dimension;
 
 layout(location=5) uniform vec3 light_position;
 
+layout(location=6) uniform int use_opti;
+
 struct OctreeContext
 {
 	int index;
@@ -68,8 +70,6 @@ void advance(inout OctreeContext context, in ivec3 step_vec, vec3 t_delta, inout
 		if (context.t_max.x < context.t_max.z)
 		{
 			context.sub_coords.x += step_vec.x;
-			//context.sub_index += step_vec.x;
-
 			context.t_max_min = context.t_max.x;
 			context.t_max.x  += t_delta.x;
 			result.normal = vec3(-step_vec.x, 0.0, 0.0);
@@ -77,8 +77,6 @@ void advance(inout OctreeContext context, in ivec3 step_vec, vec3 t_delta, inout
 		else
 		{
 			context.sub_coords.z += step_vec.z;
-			//context.sub_index += 4*step_vec.z;
-
 			context.t_max_min = context.t_max.z;
 			context.t_max.z  += t_delta.z;
 			result.normal = vec3(0.0, 0.0, -step_vec.z);
@@ -89,8 +87,6 @@ void advance(inout OctreeContext context, in ivec3 step_vec, vec3 t_delta, inout
 		if (context.t_max.y < context.t_max.z)
 		{
 			context.sub_coords.y += step_vec.y;
-			//context.sub_index += 2*step_vec.y;
-
 			context.t_max_min = context.t_max.y;
 			context.t_max.y  += t_delta.y;
 			result.normal = vec3(0.0, -step_vec.y, 0.0);
@@ -98,15 +94,39 @@ void advance(inout OctreeContext context, in ivec3 step_vec, vec3 t_delta, inout
 		else
 		{
 			context.sub_coords.z += step_vec.z;
-			//context.sub_index += 4*step_vec.z;
-
 			context.t_max_min = context.t_max.z;
 			context.t_max.z  += t_delta.z;
 			result.normal = vec3(0.0, 0.0, -step_vec.z);
 		}
 	}
+}
 
-	//context.sub_index = context.sub_coords.x + 2*context.sub_coords.y + 4*context.sub_coords.z;
+bool exit_next_iteration(in OctreeContext context, in ivec3 dir)
+{
+	if (context.t_max.x < context.t_max.y)
+	{
+		if (context.t_max.x < context.t_max.z)
+		{
+			return dir.x == context.sub_coords.x;
+		}
+		else
+		{
+			return dir.z == context.sub_coords.z;
+		}
+	}
+	else
+	{
+		if (context.t_max.y < context.t_max.z)
+		{
+			return dir.y == context.sub_coords.y;
+		}
+		else
+		{
+			return dir.z == context.sub_coords.z;
+		}
+	}
+
+	return false;
 }
 
 bool is_valid_sub_coords(in ivec3 sub_coords)
@@ -133,6 +153,7 @@ void castRay(in vec3 start, in vec3 ray, in int max_iter, out HitPoint result)
 	ivec3 dir      = max(step_vec, 0);
 	vec3 t_delta   = abs(vec3(max_size) * inv_ray);
 	bool skip      = false;
+	bool pop       = false;
 	int current_stack_index = 0;
 
 	const int max_stack_size = max_scale+1;
@@ -152,7 +173,7 @@ void castRay(in vec3 start, in vec3 ray, in int max_iter, out HitPoint result)
 		OctreeElement current_elem = octree[context.index];
 
 		int current_size    = 1<<scale;
-		int sub_index       = context.sub_coords.x + ((context.sub_coords.y + (context.sub_coords.z<<1))<<1);
+		int sub_index       = context.sub_coords.x + (context.sub_coords.y<<1) + (context.sub_coords.z<<2);
 
 		int current_mask = (octree[context.index].mask << sub_index);
 	
@@ -168,14 +189,9 @@ void castRay(in vec3 start, in vec3 ray, in int max_iter, out HitPoint result)
 				scale++;
 				current_stack_index--;
 				t_delta *= 2;
-				if (current_stack_index<0)
-				{
-					break;
-				}
-				else
-				{
-					skip = true;
-				}
+				
+				if (current_stack_index<0) { break; }
+				else { skip = true; }
 			}
 		}
 		// If not, go deeper
@@ -199,8 +215,8 @@ void castRay(in vec3 start, in vec3 ray, in int max_iter, out HitPoint result)
 			{
 				// Adding sub context to the stack
 				scale--;
-				current_stack_index++;
 				t_delta *= 0.5;
+				current_stack_index++;
 
 				if (current_stack_index > max_stack_size-1)
 				{
@@ -247,21 +263,21 @@ void main()
 	
 	int max_iter = 256;
 	castRay(start_position, ray, max_iter, result);
-	pixel = vec3(result.iteration/float(max_iter));
+	//pixel = vec3(result.iteration/float(max_iter));
 
 	vec3 light_position = vec3(1000, 200, 1000);
 
 	if (result.hit)
 	{
-		pixel = vec3(length(start_position-result.point)) / 512.0;
-		/*vec3 light_ray = light_position - (result.point + result.normal*0.1);
+		//pixel = vec3(length(start_position-result.point)) / 512.0;
+		vec3 light_ray = light_position - (result.point + result.normal*0.1);
 
 		HitPoint light_point;
 		castRay(result.point, normalize(light_ray), max_iter/2, light_point);
 
-		//pixel = abs(result.normal);
+		pixel = abs(result.normal);
 		if (light_point.hit)
-			pixel *= 0.25;*/
+			pixel *= 0.25;
 	}
 	//pixel = result.debug_color;
 	//pixel = abs(result.normal);
