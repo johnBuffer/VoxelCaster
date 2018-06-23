@@ -70,7 +70,7 @@ int main()
 	{
 		for (int z = 0; z < octree_size; z++)
 		{
-			int max_height = 50;
+			int max_height = 75;
 			int height = max_height / 2 * myNoise.GetNoise(x, z);
 
 			for (int y(0); y < max_height + height; ++y)
@@ -194,7 +194,7 @@ int main()
 		}*/
 		start_position += movement;
 		
-		std::cout << "Opti: " << use_opti << std::endl;
+		//std::cout << "Opti: " << use_opti << std::endl;
 		glUniform1i(6, use_opti);
 		glUniform3f(2, start_position.x, start_position.y, start_position.z);
 		glUniform3f(5, light_position.x, light_position.y, light_position.z);
