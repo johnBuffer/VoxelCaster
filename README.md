@@ -1,5 +1,5 @@
 # VoxelCaster
-Simple voxel ray caster in CPP / GLSL using compute shader and sparse voxel octree to store geometry. Currently it is not well optimized (~20fps for a 512 * 512 map with à GTX 1060).
+Simple voxel ray caster in C++ / GLSL using compute shader and sparse voxel octree to store geometry. Currently it is not well optimized (~20fps for a 512 * 512 map with à GTX 1060).
 
 Pseudo Random noise is used for terrain generation (Fast Noise lib: https://github.com/Auburns/FastNoise)
 
