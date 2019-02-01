@@ -2,18 +2,7 @@
 
 precision highp float;
 
-struct OctreeElement
-{
-	int subs;
-	int mask;
-};
-
-layout(local_size_x = 2, local_size_y = 2) in;
-
-layout(std430, binding=4) readonly buffer Octree_data
-{
-    OctreeElement octree[];
-};
+layout(local_size_x = 1, local_size_y = 1) in;
 
 layout(rgba32f) uniform image2D img_output;
 
@@ -25,263 +14,117 @@ layout(location=4) uniform ivec2 render_dimension;
 
 layout(location=5) uniform vec3 light_position;
 
-layout(location=6) uniform int use_opti;
+layout(location=6) uniform mat3 rot_mat_camera;
 
-struct OctreeContext
+float DistanceEstimator(vec3 p)
 {
-	int index;
-	ivec3 sub_coords;
+	vec3 v = vec3(mod(p.x, 1.0), p.y, mod(p.z, 1.0)) - vec3(0.5);
+    //vec3 v = p;
+	return length(v) - 0.25;
+}
 
-	vec3 start_coords;
-
-	vec3 t_max;
-	float t_max_min;
-};
-
-struct HitPoint
+vec3 normalAt(vec3 p)
 {
-	vec3 normal;
-	int iteration;
+	float epsilon = 0.0001;
+	vec3 xDir = vec3(epsilon, 0.0, 0.0);
+	vec3 yDir = vec3(0.0, epsilon, 0.0);
+	vec3 zDir = vec3(0.0, 0.0, epsilon);
+	return normalize(vec3(DistanceEstimator(p+xDir)-DistanceEstimator(p-xDir),
+		                  DistanceEstimator(p+yDir)-DistanceEstimator(p-yDir),
+		                  DistanceEstimator(p+zDir)-DistanceEstimator(p-zDir)));
+}
 
-	vec3 point;
-
-	bool hit;
-	//vec3 debug_color;
-};
-
-void initialize_context(inout OctreeContext context, in ivec3 dir, in vec3 inv_ray, int current_size)
+float castShadow(vec3 from)
 {
-	// Compute sub_index
-	context.sub_coords = min(ivec3(context.start_coords / current_size), 1);
+	int MaximumRaySteps = 32;
+	float MinimumDistance = 0.001;
+
+	float totalDistance = 0.0;
+	int steps;
 	
-	//context.sub_index = context.sub_coords.x + (context.sub_coords.y<<1) + (context.sub_coords.z<<2);
+	bool hit = false;
+	vec3 p;
+	float minDist = 100000;
 
-	// Compute the value of t for first intersection in x and y
-	context.t_max_min = 0;
+	vec3 direction = normalize(light_position - from);
 
-	// Compute the value of t for first intersection in x and y
-	context.t_max = ((dir + context.sub_coords)*current_size - context.start_coords) * inv_ray;
-}
+	for (steps=0; steps < MaximumRaySteps; steps++) 
+	{
+		p = from + totalDistance * direction;
+		float distance = DistanceEstimator(p);
 
-void advance(inout OctreeContext context, in ivec3 step_vec, vec3 t_delta, inout HitPoint result)
-{
-	if (context.t_max.x < context.t_max.y)
-	{
-		if (context.t_max.x < context.t_max.z)
-		{
-			context.sub_coords.x += step_vec.x;
-			context.t_max_min = context.t_max.x;
-			context.t_max.x  += t_delta.x;
-			result.normal = vec3(-step_vec.x, 0.0, 0.0);
-		}
-		else
-		{
-			context.sub_coords.z += step_vec.z;
-			context.t_max_min = context.t_max.z;
-			context.t_max.z  += t_delta.z;
-			result.normal = vec3(0.0, 0.0, -step_vec.z);
-		}
-	}
-	else
-	{
-		if (context.t_max.y < context.t_max.z)
-		{
-			context.sub_coords.y += step_vec.y;
-			context.t_max_min = context.t_max.y;
-			context.t_max.y  += t_delta.y;
-			result.normal = vec3(0.0, -step_vec.y, 0.0);
-		}
-		else
-		{
-			context.sub_coords.z += step_vec.z;
-			context.t_max_min = context.t_max.z;
-			context.t_max.z  += t_delta.z;
-			result.normal = vec3(0.0, 0.0, -step_vec.z);
-		}
-	}
-}
+		minDist = min(distance, minDist);
 
-bool exit_next_iteration(in OctreeContext context, in ivec3 dir)
-{
-	if (context.t_max.x < context.t_max.y)
-	{
-		if (context.t_max.x < context.t_max.z)
+		totalDistance += distance;
+		if (abs(distance) < MinimumDistance) 
 		{
-			return dir.x == context.sub_coords.x;
-		}
-		else
-		{
-			return dir.z == context.sub_coords.z;
-		}
-	}
-	else
-	{
-		if (context.t_max.y < context.t_max.z)
-		{
-			return dir.y == context.sub_coords.y;
-		}
-		else
-		{
-			return dir.z == context.sub_coords.z;
+			hit = true;
+			break;
 		}
 	}
 
-	return false;
+	if (hit)
+	{
+		return 0.2;
+	}
+
+	return 1.0-1.0/(1.0+minDist);
 }
 
-bool is_valid_sub_coords(in ivec3 sub_coords)
+vec3 trace(vec3 from, vec3 direction) 
 {
-	return clamp(sub_coords, 0, 1) == sub_coords;
-}
+	int MaximumRaySteps = 128;
+	float MinimumDistance = 0.001;
 
-void castRay(in vec3 start, in vec3 ray, in int max_iter, out HitPoint result)
-{
-	int iter_counter = 0;
-	const int max_scale = 10;
+	float totalDistance = 0.0;
+	int steps;
 	
-	result.hit = false;
-	//result.debug_color = vec3(0.0);
-
-	// We assume we have a ray vector:
-	// vec = start + t*v
-	
-	// Initialization of global parameters
-	int scale      = max_scale-1;
-	int max_size   = 1<<(scale);
-	vec3  inv_ray  = 1.0 / ray;
-	ivec3 step_vec = ivec3(sign(ray));
-	ivec3 dir      = max(step_vec, 0);
-	vec3 t_delta   = abs(vec3(max_size) * inv_ray);
-	bool skip      = false;
-	bool pop       = false;
-	int current_stack_index = 0;
-
-	const int max_stack_size = max_scale+1;
-	OctreeContext stack[max_stack_size];
-	// index, sub_size, start.x, start.y
-	stack[0].index = 0;
-	stack[0].start_coords = start;
-
-	initialize_context(stack[0], dir, inv_ray, max_size);
-
-	// Probable condition: hit or stack.is_empty()
-	while (iter_counter < max_iter)
+	bool hit = false;
+	vec3 p;
+	float minDist = 100000;
+	for (steps=0; steps < MaximumRaySteps; steps++) 
 	{
-		iter_counter++;
-		// Current context (location, index, sub_index, ...)
-		OctreeContext context = stack[current_stack_index];
-		OctreeElement current_elem = octree[context.index];
+		p = from + totalDistance * direction;
+		float distance = DistanceEstimator(p);
 
-		int current_size    = 1<<scale;
-		int sub_index       = context.sub_coords.x + (context.sub_coords.y<<1) + (context.sub_coords.z<<2);
+		minDist = min(distance, minDist);
 
-		int current_mask = (octree[context.index].mask << sub_index);
-	
-		// If current sub empty -> move to next one
-		if (!bool(current_mask & 0x8000) || skip)
+		totalDistance += distance;
+		if (abs(distance) < MinimumDistance) 
 		{
-			if (skip) skip = false;
-
-			advance(stack[current_stack_index], step_vec, t_delta, result);
-
-			if (!is_valid_sub_coords(stack[current_stack_index].sub_coords))
-			{
-				scale++;
-				current_stack_index--;
-				t_delta *= 2;
-				
-				if (current_stack_index<0) { break; }
-				else { skip = true; }
-			}
-		}
-		// If not, go deeper
-		else
-		{
-			if (bool(current_mask & 0x80))
-			{
-				result.hit = true;
-
-				// Compute absolute hit point position
-				float total_t_max = 0;
-				for (int i=0; i<current_stack_index; ++i)
-				{
-					total_t_max += stack[i].t_max_min;
-				}
-				
-				result.point = stack[0].start_coords + total_t_max*ray;
-				break;
-			}
-			else
-			{
-				// Adding sub context to the stack
-				scale--;
-				t_delta *= 0.5;
-				current_stack_index++;
-
-				if (current_stack_index > max_stack_size-1)
-				{
-					//result.debug_color = vec3(0.0, 0.0, 0.0);
-					break;
-				}
-
-				// Translating relative coords into sub context
-				stack[current_stack_index].index = current_elem.subs + sub_index;
-				stack[current_stack_index].start_coords = context.start_coords + context.t_max_min*ray - vec3(context.sub_coords)*current_size;
-
-				// Initializing sub raycast 
-				initialize_context(stack[current_stack_index], dir, inv_ray, current_size>>1);
-			}
+			hit = true;
+			break;
 		}
 	}
 
-	result.iteration = iter_counter;
-}
+	if (hit)
+	{
+		vec3 normal = normalAt(p);
+		float shadow = castShadow(p);
+		float color = dot(normal, normalize(light_position-p))*shadow;
+		return vec3(color);
+	}
 
+	float glow = 0.0;//1.0/(1.0+10.0*minDist);
+
+	return vec3(glow);
+}
 
 void main() 
 {  
 	ivec2 pixel_coord = ivec2(gl_GlobalInvocationID.xy);
-	vec2 screen_offset = vec2(render_dimension.x/2.0, render_dimension.y/2.0);
+	vec2 screen_offset = vec2(render_dimension.x/2, render_dimension.y/2);
 	
 	vec3 pixel = vec3(0.0);
-	//vec3 pixel = vec3(octree[pixel_coord.x].is_leaf == 1);
 	
-	vec3 camera_origin = vec3(0, 0, -render_dimension.x);
+	vec3 camera_origin = vec3(0.0, 0.0, -render_dimension.x);
 	vec3 screen_coord = vec3(pixel_coord-screen_offset, 0.0);
 	
-	// Ray calculation
-	float sin_a = sin(-camera_angles.x);
-	float cos_a = cos(-camera_angles.x);
-	float sin_a_y = sin(camera_angles.y);
-	float cos_a_y = cos(camera_angles.y);
-	
 	vec3 ray = normalize(screen_coord - camera_origin);
-	ray = vec3(ray.x, ray.y*cos_a_y-ray.z*sin_a_y, ray.y*sin_a_y+ray.z*cos_a_y);
-	ray = vec3(ray.x*cos_a-ray.z*sin_a, ray.y, ray.x*sin_a+ray.z*cos_a);
-		
-	HitPoint result;
-	
-	int max_iter = 256;
-	castRay(start_position, ray, max_iter, result);
-	pixel = vec3(result.iteration/float(max_iter));
 
-	vec3 light_position = vec3(1000, 200, 1000);
+	ray = rot_mat_camera*ray;
 
-	if (result.hit)
-	{
-		//pixel = vec3(length(start_position-result.point)) / 512.0;
-		vec3 light_ray = light_position - (result.point + result.normal*0.1);
+	pixel = vec3(trace(start_position, ray));
 
-		//HitPoint light_point;
-		//castRay(result.point, normalize(light_ray), max_iter/2, light_point);
-
-		/*pixel = abs(result.normal);
-		if (light_point.hit)
-			pixel *= 0.25;*/
-	}
-	//pixel = result.debug_color;
-	//pixel = abs(result.normal);
-	
-	// output to a specific pixel in the image
 	imageStore(img_output, pixel_coord, vec4(pixel, 1.0));
 }
