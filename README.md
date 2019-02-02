@@ -1,6 +1,9 @@
 # VoxelCaster
 Simple voxel ray caster in C++ / GLSL using compute shader and sparse voxel octree to store geometry. Currently it is not well optimized (~20fps for a 512 * 512 map with a GTX 1060).
 
+Raymarching a signed distance field (distance-field branch)
+![Signed Distance field](https://github.com/johnBuffer/VoxelCaster/blob/distance-field/images/screen1.png)
+
 Pseudo Random noise is used for terrain generation (Fast Noise lib: https://github.com/Auburns/FastNoise)
 
 Render image (Faces are colorized depending on their normal):
