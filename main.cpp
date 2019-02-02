@@ -107,7 +107,7 @@ int main()
 	{
 		time += 0.005;
 
-		light_position = glm::vec3(100 * cos(time), 0.0, 100 * sin(time));
+		light_position = glm::vec3(2 * cos(time), 2, 2 * sin(time));
 
 		glUseProgram(compute_shader);
 
@@ -129,7 +129,7 @@ int main()
 
 		glm::vec3 movement = glm::vec3(0.0f, 0.0f, 0.0f);
 
-		float speed = 0.05f;
+		float speed = 0.1f;
 
 		// Keys management
 		int state = glfwGetKey(window, GLFW_KEY_W);
