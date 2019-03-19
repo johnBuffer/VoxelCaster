@@ -12,11 +12,11 @@
 
 int main()
 {
-    int WIN_WIDTH = 1024;
-    int WIN_HEIGHT = 1024;
+    int WIN_WIDTH = 1280;
+    int WIN_HEIGHT = 720;
 
-	int RENDER_WIDTH = 1024;
-	int RENDER_HEIGHT = 1024;
+	int RENDER_WIDTH = 1280;
+	int RENDER_HEIGHT = 720;
 
 	// Initialize GLFW
 	if (!glfwInit())
@@ -107,7 +107,7 @@ int main()
 	{
 		time += 0.005;
 
-		light_position = glm::vec3(2 * cos(time), 2, 2 * sin(time));
+		light_position = glm::vec3(2 * cos(time), 1, 2 * sin(time));
 
 		glUseProgram(compute_shader);
 
