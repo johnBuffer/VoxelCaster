@@ -4,10 +4,9 @@
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 
-#include "Octree.h"
 #include "ShaderProgram.h"
 #include "utils.h"
-#include "FastNoise.h"
+#include <FastNoise.h>
 
 int main()
 {
