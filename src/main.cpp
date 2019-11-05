@@ -4,6 +4,7 @@
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 
+#include "Octree.h"
 #include "ShaderProgram.h"
 #include "utils.h"
 #include <FastNoise.h>
@@ -13,8 +14,8 @@ int main()
     int WIN_WIDTH = 1024;
     int WIN_HEIGHT = 1024;
 
-	int RENDER_WIDTH = 256;
-	int RENDER_HEIGHT = 256;
+	int RENDER_WIDTH = 1024;
+	int RENDER_HEIGHT = 1024;
 
 	// Initialize GLFW
 	if (!glfwInit())
@@ -72,7 +73,7 @@ int main()
 	FastNoise myNoise; // Create a FastNoise object
 	myNoise.SetNoiseType(FastNoise::SimplexFractal); // Set the desired noise type
 
-	/*for (int x = 0; x < octree_size; x++)
+	for (int x = 0; x < octree_size; x++)
 	{
 		for (int z = 0; z < octree_size; z++)
 		{
@@ -84,7 +85,7 @@ int main()
 				octree.addElement(x, y, z);
 			}
 		}
-	}*/
+	}
 
 	/*for (int i(100); i--;)
 	{
